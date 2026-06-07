@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chapala Forum Search</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.0/dist/transformers.min.js"
+    }
+  }
+  </script>
+  <script type="module" crossorigin src="./assets/index-CQ1XhSQ3.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DqpZ6axE.css">
+</head>
+<body>
+  <div class="search-container">
+    <!-- Header -->
+    <header class="mb-8 text-center">
+      <h1 class="text-3xl md:text-4xl font-bold text-brand-800 mb-2">
+        Chapala Forum Search
+      </h1>
+      <p class="text-brand-500 text-base">
+        Search discussions from the Ajijic / Chapala / Guadalajara board
+      </p>
+    </header>
+
+    <!-- Status bar -->
+    <div id="status-bar" class="status-bar mb-6">
+      <span id="status-dot" class="status-dot bg-brand-300"></span>
+      <span id="status-text">Loading search engine...</span>
+    </div>
+
+    <!-- Search input -->
+    <div class="mb-8">
+      <input
+        id="search-input"
+        type="text"
+        class="search-box"
+        placeholder="Loading search engine..."
+        disabled
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <!-- Results count -->
+    <div id="results-info" class="text-sm text-brand-400 mb-4 hidden">
+      <span id="results-count">0</span> results
+    </div>
+
+    <!-- Results list -->
+    <div id="results-list" class="space-y-4"></div>
+
+    <!-- Empty state -->
+    <div id="empty-state" class="text-center py-16 text-brand-400 hidden">
+      <p class="text-lg">Type a question or topic to search</p>
+      <p class="text-sm mt-2">e.g. "driver's license", "rental", "internet providers"</p>
+    </div>
+  </div>
+
+</body>
+</html>

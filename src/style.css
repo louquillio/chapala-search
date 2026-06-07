@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-brand-50 text-brand-900 antialiased;
+}
+
+.search-container {
+  @apply max-w-3xl mx-auto px-4 py-8 md:py-16;
+}
+
+.search-box {
+  @apply w-full px-5 py-4 text-lg border-2 border-brand-300 rounded-xl
+         bg-white shadow-sm
+         focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200
+         transition-colors placeholder:text-brand-400;
+}
+
+.search-box:disabled {
+  @apply bg-brand-100 border-brand-200 text-brand-400 cursor-not-allowed;
+}
+
+.result-card {
+  @apply p-5 bg-white rounded-xl border border-brand-200 shadow-sm
+         hover:shadow-md hover:border-brand-300
+         transition-all duration-150;
+}
+
+.result-snippet {
+  @apply text-brand-600 leading-relaxed mb-3;
+}
+
+.result-title {
+  @apply text-brand-800 font-semibold text-lg;
+}
+
+.result-meta {
+  @apply text-sm text-brand-400 mt-2;
+}
+
+.result-link {
+  @apply text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium;
+}
+
+.status-bar {
+  @apply flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-brand-200 text-brand-500 text-sm;
+}
+
+.status-dot {
+  @apply w-2.5 h-2.5 rounded-full flex-shrink-0;
+}
