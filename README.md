@@ -171,4 +171,4 @@ This repo is configured to serve from the `docs/` folder on the `main` branch:
 
 The `run-pipeline.sh` script auto-commits and pushes when new data is indexed, so the site updates automatically after each weekly crawl.
 
-> **Note:** Automated `git push` in cron requires credential setup. Run `git config --global credential.helper store` and do one manual push to cache credentials, or set up SSH keys. Without this, the pipeline logs a warning and skips the push.
+> **Note:** The remote is configured for SSH (`git@github.com:louquillio/chapala-search.git`). Your SSH key is already set up, so the pipeline's auto-push works headlessly in cron with no extra credential step.
