@@ -170,3 +170,5 @@ This repo is configured to serve from the `docs/` folder on the `main` branch:
 5. Site will be live at `https://<user>.github.io/chapala-search/`
 
 The `run-pipeline.sh` script auto-commits and pushes when new data is indexed, so the site updates automatically after each weekly crawl.
+
+> **Note:** Automated `git push` in cron requires credential setup. Run `git config --global credential.helper store` and do one manual push to cache credentials, or set up SSH keys. Without this, the pipeline logs a warning and skips the push.
