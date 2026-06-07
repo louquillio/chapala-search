@@ -13,6 +13,12 @@
 set -euo pipefail
 
 PROJECT_DIR="$HOME/projects/chapala-search"
+
+# Git identity for headless cron commits
+export GIT_AUTHOR_NAME="Chapala Search Bot"
+export GIT_AUTHOR_EMAIL="bot@chapala-search.local"
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 LOCKDIR="/tmp/chapala-search-pipeline.lock"
 LOG_FILE="$PROJECT_DIR/scraper/pipeline.log"
 HEALTHCHECKS_URL="${HEALTHCHECKS_URL:-}"  # set in environment or leave blank

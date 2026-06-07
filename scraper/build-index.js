@@ -119,6 +119,13 @@ function parseTopicList(html) {
     // Dedupe by URL
     if (topics.some((t) => t.url === url)) return;
 
+    // Skip pinned/announcement topics (badge with ipsBadge_positive)
+    const heading = $(el).closest('h4.ipsDataItem_title');
+    if (heading.find('.ipsBadge_positive').length > 0) {
+      console.error(`[SKIP] Pinned topic: "${text}"`);
+      return;
+    }
+
     topics.push({ url, title: text });
   });
 
