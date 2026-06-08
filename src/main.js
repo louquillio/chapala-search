@@ -29,6 +29,7 @@ const statusText  = $('status-text');
 let extractPipeline = null;
 let indexData = [];
 let maxPoints = 0;
+let wordFreq = null; // Map<word, documentCount> for rarity-weighted term bonus
 
 function setStatus(state) {
   statusDot.className = `status-dot ${state.dot}`;
@@ -228,14 +229,22 @@ async function performSearch(query) {
       const daysOld = chunk.date ? (now - new Date(chunk.date).getTime()) / 86400000 : 999;
       const recencyFactor = Math.max(0, 1 - daysOld / 730);
 
-      // Term bonus: boost by 0.15 per query term found in the text
+      // Term bonus: each query term's boost is weighted by rarity in the corpus
+      // A term in 0.5% of docs gets nearly full boost; one in 10%+ gets zero
       const lower = chunk.text.toLowerCase();
       let termHits = 0;
+      let totalRarity = 0;
       for (const t of queryTerms) {
-        if (lower.includes(t)) termHits++;
+        if (lower.includes(t)) {
+          termHits++;
+          const freq = (wordFreq?.get(t) || 0) / indexData.length;
+          totalRarity += Math.max(0, 1 - freq / 0.10); // linear fade to zero at 10% frequency
+        }
       }
       const hasTerm = termHits > 0;
-      const termBonus = queryTerms.length > 0 ? (termHits / queryTerms.length) * 0.15 : 0;
+      const termBonus = queryTerms.length > 0
+        ? (totalRarity / queryTerms.length) * 0.15
+        : 0;
 
       return {
         ...chunk,
@@ -292,6 +301,16 @@ async function init() {
     indexData = await resp.json();
     maxPoints = Math.max(...indexData.map(c => c.points || 0), 1);
     console.log(`Loaded ${indexData.length} entries, max points: ${maxPoints}`);
+
+    // Build word frequency map for rarity-weighted term bonus
+    wordFreq = new Map();
+    for (const entry of indexData) {
+      const words = new Set(entry.text.toLowerCase().split(/\W+/).filter(w => w.length > 2));
+      for (const w of words) {
+        wordFreq.set(w, (wordFreq.get(w) || 0) + 1);
+      }
+    }
+    console.log(`Word frequency map: ${wordFreq.size} unique terms`);
 
     extractPipeline = await pipeline('feature-extraction', 'onnx-community/all-MiniLM-L6-v2-ONNX', {
       quantized: true,
