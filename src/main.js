@@ -254,7 +254,13 @@ async function performSearch(query) {
       };
     });
 
-    scored.sort((a, b) => b.score - a.score);
+    // Hard tier break: all term-matched posts first, then semantic-only
+    // Within each tier, sort by combined score
+    scored.sort((a, b) => {
+      // Tier 0: has query term(s). Tier 1: semantic only.
+      if (a.hasTerm !== b.hasTerm) return a.hasTerm ? -1 : 1;
+      return b.score - a.score;
+    });
 
     // Dedupe by postUrl+text, filter low scores
     const seen = new Set();
