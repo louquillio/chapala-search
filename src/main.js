@@ -343,6 +343,12 @@ async function init() {
     input.focus();
     setStatus(STATUS.READY);
 
+    // Show LOCAL badge on dev server
+    const badge = document.getElementById('env-badge');
+    if (badge && ['localhost','127.0.0.1'].some(h => location.hostname === h)) {
+      badge.classList.remove('hidden');
+    }
+
     empty.classList.remove('hidden');
 
   } catch (err) {
