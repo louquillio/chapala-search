@@ -147,7 +147,7 @@ Check the log at `scraper/pipeline.log` for output.
 
 1. **Crawl** — The scraper navigates the forum's topic listing pages (up to `--pages=N`), collecting every non-pinned thread URL
 2. **Fetch** — Each thread page is loaded and parsed
-3. **Score** — Every post in each thread is checked for reactions. Only posts with ≥3 total reactions (Likes + Thanks — called "points") are kept
+3. **Score** — Every post in each thread is checked for reactions. Posts with at least 1 reaction (Likes + Thanks — called "points") are kept. This threshold was lowered from 3 to 1 to improve recall for threads where helpful replies don't get many reactions.
 4. **Extract** — Qualifying posts have their text extracted, HTML stripped
 5. **Chunk** — Text is split by double newlines; paragraphs over 400 chars are broken at sentence boundaries
 6. **Embed** — Each chunk is converted to a 384-dimensional vector using all-MiniLM-L6-v2 (ONNX, local)

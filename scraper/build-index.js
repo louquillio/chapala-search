@@ -26,7 +26,7 @@ const INDEX_PATH = path.resolve(
 );
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 2000;
-const MIN_REACTIONS = 3;
+const MIN_REACTIONS = 1;
 const MAX_CHUNK_CHARS = 400;
 const REQUEST_TIMEOUT_MS = 15000;
 const PACING_DELAY_MS = 800; // delay between topic fetches to avoid 429
@@ -305,12 +305,31 @@ function loadExistingIndex() {
 
 /**
  * Save the complete index to file.
+ * Vectors go to index.bin (Float32), metadata to index.json.
  */
 function saveIndex(data) {
   const dir = path.dirname(INDEX_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(INDEX_PATH, JSON.stringify(data, null, 2), 'utf-8');
-  console.log(`[DONE] Index written to ${INDEX_PATH} (${data.length} entries)`);
+
+  // Write metadata (text, title, url, postUrl, date, points) — no vectors
+  const meta = data.map(({ vector, ...rest }) => rest);
+  fs.writeFileSync(INDEX_PATH, JSON.stringify(meta), 'utf-8');
+
+  // Write vectors as flat Float32 binary
+  const totalVectors = data.length;
+  const dim = data[0]?.vector?.length || 0;
+  const binPath = INDEX_PATH.replace(/\.json$/, '.bin');
+  const buf = new Float32Array(totalVectors * dim);
+  for (let i = 0; i < totalVectors; i++) {
+    for (let j = 0; j < dim; j++) {
+      buf[i * dim + j] = data[i].vector?.[j] || 0;
+    }
+  }
+  fs.writeFileSync(binPath, Buffer.from(buf.buffer));
+
+  const jsonSize = (fs.statSync(INDEX_PATH).size / 1024 / 1024).toFixed(1);
+  const binSize = (fs.statSync(binPath).size / 1024 / 1024).toFixed(1);
+  console.log(`[DONE] Written: ${INDEX_PATH} (${jsonSize} MB), ${binPath} (${binSize} MB) — ${totalVectors} entries`);
 }
 
 // --- Page iterator ---

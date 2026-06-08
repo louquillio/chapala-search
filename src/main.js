@@ -306,7 +306,23 @@ async function init() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     indexData = await resp.json();
     maxPoints = Math.max(...indexData.map(c => c.points || 0), 1);
-    console.log(`Loaded ${indexData.length} entries, max points: ${maxPoints}`);
+    console.log(`Loaded ${indexData.length} metadata entries, max points: ${maxPoints}`);
+
+    // Load binary vectors from index.bin
+    const binResp = await fetch('./index.bin');
+    if (!binResp.ok) throw new Error(`HTTP ${binResp.status} for index.bin`);
+    const binBuf = await binResp.arrayBuffer();
+    const vectors = new Float32Array(binBuf);
+    const dim = 384;
+    const vecCount = vectors.length / dim;
+    if (vecCount !== indexData.length) {
+      console.warn(`Vector count mismatch: ${vecCount} vectors vs ${indexData.length} entries`);
+    }
+    // Attach vectors to each entry
+    for (let i = 0; i < Math.min(indexData.length, vecCount); i++) {
+      indexData[i].vector = Array.from(vectors.subarray(i * dim, (i + 1) * dim));
+    }
+    console.log(`Loaded ${vecCount} vectors, dim=${dim}`);
 
     // Build word frequency map for rarity-weighted term bonus
     wordFreq = new Map();
