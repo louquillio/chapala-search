@@ -28,19 +28,24 @@ body {
 }
 
 .result-snippet {
-  @apply text-brand-600 leading-relaxed mb-3;
+  @apply text-brand-600 leading-relaxed text-base;
 }
 
 .result-title {
-  @apply text-brand-800 font-semibold text-lg;
+  @apply text-brand-800 font-semibold text-lg hover:text-blue-600 transition-colors;
 }
 
 .result-meta {
-  @apply text-sm text-brand-400 mt-2;
+  @apply text-sm text-brand-400 mt-2 flex items-center gap-2;
 }
 
 .result-link {
   @apply text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium;
+}
+
+/* Collapse toggle */
+.collapse-toggle {
+  @apply flex items-center gap-2 text-sm text-brand-400 hover:text-brand-600 cursor-pointer w-full text-left py-1 px-3 rounded-lg hover:bg-brand-100 transition-colors;
 }
 
 .status-bar {
@@ -49,4 +54,44 @@ body {
 
 .status-dot {
   @apply w-2.5 h-2.5 rounded-full flex-shrink-0;
+}
+
+/* Grouped results */
+.result-group-header:hover .result-title {
+  @apply text-blue-600;
+}
+
+.result-group-nested {
+  @apply ml-5 pl-4 border-l-2 border-brand-200 space-y-2;
+}
+
+.result-nested {
+  @apply block !p-3;
+}
+
+/* Points badge heat scale */
+.points-hot {
+  @apply bg-emerald-100 text-emerald-700 ring-emerald-300;
+}
+
+.points-warm {
+  @apply bg-amber-100 text-amber-700 ring-amber-300;
+}
+
+.points-solid {
+  @apply bg-blue-100 text-blue-700 ring-blue-300;
+}
+
+.points-low {
+  @apply bg-gray-100 text-gray-500 ring-gray-200;
+}
+
+/* Environment badge — localhost only */
+.env-badge {
+  @apply fixed bottom-4 right-4 z-50 px-2.5 py-1 text-xs font-bold
+         rounded-full select-none pointer-events-none;
+  background: #f43f5e;       /* rose-500 */
+  color: #fff;
+  letter-spacing: 0.08em;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }

@@ -29,9 +29,11 @@ const RETRY_BASE_MS = 2000;
 const MIN_REACTIONS = 3;
 const MAX_CHUNK_CHARS = 400;
 const REQUEST_TIMEOUT_MS = 15000;
+const PACING_DELAY_MS = 800; // delay between topic fetches to avoid 429
 
 // Parse --pages=N arg
 const PAGES = parsePagesArg(process.argv);
+const REBUILD = process.argv.includes('--rebuild');
 
 function parsePagesArg(argv) {
   for (const arg of argv) {
@@ -135,10 +137,10 @@ function parseTopicList(html) {
 // --- Topic page parsing ---
 
 /**
- * Parse a topic page to extract first-post reaction count and text.
+ * Parse a topic page to extract ALL qualifying posts and their reactions.
  *
- * Returns { reactions: number, title: string, date: string, text: string }
- * or null if the post doesn't qualify.
+ * Returns { title: string, posts: [{ commentId, reactions, date, text }] }
+ * or null if no posts qualify.
  */
 function parseTopicPage(html, fallbackTitle) {
   const $ = cheerio.load(html);
@@ -149,52 +151,66 @@ function parseTopicPage(html, fallbackTitle) {
     $('h1').first().text().trim() ||
     fallbackTitle;
 
-  // Find the first post container
-  const firstPost = $('.ipsComment').first();
-  if (!firstPost.length) {
-    console.error('[WARN] No post container (.ipsComment) found');
+  // Find all post containers
+  const allPosts = $('.ipsComment');
+  if (!allPosts.length) {
+    console.error('[WARN] No post containers (.ipsComment) found');
     return null;
   }
 
-  // Check reactions on the first post
-  let totalReactions = 0;
-  const reactCounts = firstPost.find('.ipsReact_reactCount');
-  reactCounts.each((i, el) => {
-    const val = parseInt($(el).text().trim(), 10);
-    if (!isNaN(val)) totalReactions += val;
+  const qualifying = [];
+
+  allPosts.each((i, el) => {
+    const $post = $(el);
+
+    // Extract comment ID from id="elComment_NNNNNN"
+    const elId = $post.attr('id') || '';
+    const idMatch = elId.match(/^elComment_(\d+)$/);
+    if (!idMatch) return;
+    const commentId = idMatch[1];
+
+    // Calculate total reactions for this post
+    let totalReactions = 0;
+    $post.find('.ipsReact_reactCount').each((_, countEl) => {
+      const val = parseInt($(countEl).text().trim(), 10);
+      if (!isNaN(val)) totalReactions += val;
+    });
+
+    // Skip posts below the reaction threshold
+    if (totalReactions < MIN_REACTIONS) return;
+
+    // Extract post content
+    const contentEl = $post.find('div[data-role="commentContent"]');
+    if (!contentEl.length) return;
+
+    const rawText = contentEl.text().trim();
+    if (!rawText) return;
+
+    // Extract date
+    const dateText = $post.find('time').first().attr('datetime') ||
+                     $post.find('time').first().text().trim() || '';
+
+    qualifying.push({
+      commentId,
+      reactions: totalReactions,
+      date: dateText,
+      text: rawText,
+    });
   });
 
-  if (totalReactions < MIN_REACTIONS) {
-    console.error(`[SKIP] Reactions ${totalReactions} < ${MIN_REACTIONS}: "${pageTitle}"`);
+  if (!qualifying.length) {
+    console.error(`[SKIP] No qualifying posts in "${pageTitle}"`);
     return null;
   }
 
-  // Extract post content
-  const contentEl = firstPost.find('div[data-role="commentContent"]');
-  if (!contentEl.length) {
-    console.error(`[WARN] No commentContent found in first post for "${pageTitle}"`);
-    return null;
+  console.log(`[INDEX] ${qualifying.length} qualifying post(s) in "${pageTitle}"`);
+  for (const p of qualifying) {
+    console.log(`       Post #${p.commentId}: ${p.reactions} pts — "${p.text.substring(0, 70)}..."`);
   }
-
-  // Get the raw text (strip HTML)
-  const rawText = contentEl.text().trim();
-  if (!rawText) {
-    console.error(`[SKIP] Empty post content for "${pageTitle}"`);
-    return null;
-  }
-
-  // Extract date from the first post's time element
-  const dateText = firstPost.find('time').first().attr('datetime') ||
-                   firstPost.find('time').first().text().trim() ||
-                   '';
-
-  console.log(`[INDEX] Reactions ${totalReactions}, "${pageTitle}" — ${rawText.substring(0, 80)}...`);
 
   return {
-    reactions: totalReactions,
     title: pageTitle,
-    date: dateText,
-    text: rawText,
+    posts: qualifying,
   };
 }
 
@@ -313,9 +329,10 @@ async function main() {
   console.log(`[START] Building index — crawling up to ${PAGES} page(s) of ${FORUM_URL}`);
   console.log(`[INDEX] ${INDEX_PATH}`);
 
-  // Load existing index for deduplication
-  const existing = loadExistingIndex();
+  // Load existing index for deduplication (unless --rebuild)
+  const existing = REBUILD ? [] : loadExistingIndex();
   const seenUrls = new Set(existing.map((e) => e.url));
+  const seenPostUrls = new Set(existing.map((e) => e.postUrl).filter(Boolean));
   console.log(`[INFO] Existing index: ${existing.length} entries, ${seenUrls.size} unique threads`);
 
   // Collect unique topic URLs from the listing pages
@@ -357,27 +374,35 @@ async function main() {
       continue;
     }
 
-    const parsed = parseTopicPage(html, topic.title);
-    if (!parsed) continue;
+    const result = parseTopicPage(html, topic.title);
+    if (!result || !result.posts.length) continue;
 
-    // Chunk the text
-    const chunks = chunkText(parsed.text);
-    console.log(`[INFO] ${chunks.length} chunk(s) from "${parsed.title}"`);
+    // Process each qualifying post in this thread
+    for (const post of result.posts) {
+      const chunks = chunkText(post.text);
+      const embedded = await generateEmbeddings(chunks);
+      const postUrl = topic.url + '#findComment-' + post.commentId;
 
-    // Generate embeddings
-    const embedded = await generateEmbeddings(chunks);
+      for (const chunk of embedded) {
+        if (!chunk.vector) continue; // skip failed embeddings
+        if (seenPostUrls.has(postUrl)) continue; // already indexed this post
 
-    // Create index entries
-    for (const chunk of embedded) {
-      if (!chunk.vector) continue; // skip failed embeddings
-      newEntries.push({
-        text: chunk.text,
-        title: parsed.title,
-        url: topic.url,
-        date: parsed.date,
-        vector: chunk.vector,
-      });
-      indexed++;
+        newEntries.push({
+          text: chunk.text,
+          title: result.title,
+          url: topic.url,
+          postUrl: postUrl,
+          date: post.date,
+          points: post.reactions,
+          vector: chunk.vector,
+        });
+        indexed++;
+      }
+    }
+
+    // Pace requests to avoid 429 rate limiting
+    if (processed < allTopics.length) {
+      await sleep(PACING_DELAY_MS);
     }
   }
 
@@ -388,7 +413,7 @@ async function main() {
   console.log(`\n=== SUMMARY ===`);
   console.log(`  Pages crawled:   ${Math.min(PAGES, processed)}`);
   console.log(`  Topics fetched:  ${processed}`);
-  console.log(`  Topics indexed:  ${new Set(newEntries.map((e) => e.url)).size}`);
+  console.log(`  Posts indexed:    ${new Set(newEntries.map((e) => e.postUrl)).size}`);
   console.log(`  Chunks added:    ${indexed}`);
   console.log(`  Total entries:   ${merged.length}`);
 }
