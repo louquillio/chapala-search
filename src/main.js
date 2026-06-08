@@ -9,6 +9,11 @@ const STATUS = {
 const MAX_GROUPS = 15;
 const MIN_QUERY_LENGTH = 2;
 
+// Ranking weights (match dominates — relevance never buried by popularity)
+const W_MATCH = 0.55;
+const W_POINTS = 0.25;
+const W_RECENCY = 0.20;
+
 // DOM refs
 const $ = (id) => document.getElementById(id);
 const input    = $('search-input');
@@ -22,6 +27,7 @@ const statusText  = $('status-text');
 // State
 let extractPipeline = null;
 let indexData = [];
+let maxPoints = 0;
 
 function setStatus(state) {
   statusDot.className = `status-dot ${state.dot}`;
@@ -122,7 +128,7 @@ function renderResults(scoredEntries) {
       <div class="result-meta flex items-center gap-2">
         <span class="result-link">View post</span>
         ${featured.date ? '<span>' + featured.date.split('T')[0] + '</span>' : ''}
-        <span class="ml-auto">${(featured.score * 100).toFixed(0)}% match</span>
+        <span class="ml-auto">${(featured.match * 100).toFixed(0)}% ${featured.points ? '· ' + featured.points + ' pts' : ''}</span>
       </div>
     `;
 
@@ -158,7 +164,7 @@ function renderResults(scoredEntries) {
           </div>
           <div class="text-xs text-brand-400 flex items-center gap-2">
             <span class="result-link">View post</span>
-            <span>${(item.score * 100).toFixed(0)}% match</span>
+            <span>${(item.match * 100).toFixed(0)}% ${item.points ? '· ' + item.points + ' pts' : ''}</span>
           </div>
         `;
         nestList.appendChild(nested);
@@ -198,13 +204,23 @@ async function performSearch(query) {
   }
 
   try {
+    const now = Date.now();
     const output = await extractPipeline(query, { pooling: 'mean', normalize: true });
     const queryVec = Array.from(output.data);
 
-    const scored = indexData.map((chunk) => ({
-      ...chunk,
-      score: cosineSimilarity(queryVec, chunk.vector),
-    }));
+    // Score each entry with combined factors
+    const scored = indexData.map((chunk) => {
+      const match = cosineSimilarity(queryVec, chunk.vector);
+      const pointsFactor = maxPoints > 0 ? (chunk.points || 0) / maxPoints : 0;
+      const daysOld = chunk.date ? (now - new Date(chunk.date).getTime()) / 86400000 : 999;
+      const recencyFactor = Math.max(0, 1 - daysOld / 730); // linear decay over 2 years
+
+      return {
+        ...chunk,
+        match,
+        score: match * W_MATCH + pointsFactor * W_POINTS + recencyFactor * W_RECENCY,
+      };
+    });
 
     scored.sort((a, b) => b.score - a.score);
 
@@ -216,7 +232,7 @@ async function performSearch(query) {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (r.score > 0.1 || top.length === 0) {
+      if (r.match > 0.1 || top.length === 0) {
         top.push(r);
       }
     }
@@ -249,6 +265,8 @@ async function init() {
     const resp = await fetch('./index.json');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     indexData = await resp.json();
+    maxPoints = Math.max(...indexData.map(c => c.points || 0), 1);
+    console.log(`Loaded ${indexData.length} entries, max points: ${maxPoints}`);
 
     extractPipeline = await pipeline('feature-extraction', 'onnx-community/all-MiniLM-L6-v2-ONNX', {
       quantized: true,
