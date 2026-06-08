@@ -208,17 +208,26 @@ async function performSearch(query) {
     const output = await extractPipeline(query, { pooling: 'mean', normalize: true });
     const queryVec = Array.from(output.data);
 
-    // Score each entry with combined factors
+    // Score each entry with combined factors + term bonus
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
     const scored = indexData.map((chunk) => {
       const match = cosineSimilarity(queryVec, chunk.vector);
       const pointsFactor = maxPoints > 0 ? (chunk.points || 0) / maxPoints : 0;
       const daysOld = chunk.date ? (now - new Date(chunk.date).getTime()) / 86400000 : 999;
-      const recencyFactor = Math.max(0, 1 - daysOld / 730); // linear decay over 2 years
+      const recencyFactor = Math.max(0, 1 - daysOld / 730);
+
+      // Term bonus: boost by 0.15 per query term found in the text
+      const lower = chunk.text.toLowerCase();
+      let termHits = 0;
+      for (const t of queryTerms) {
+        if (lower.includes(t)) termHits++;
+      }
+      const termBonus = queryTerms.length > 0 ? (termHits / queryTerms.length) * 0.15 : 0;
 
       return {
         ...chunk,
         match,
-        score: match * W_MATCH + pointsFactor * W_POINTS + recencyFactor * W_RECENCY,
+        score: match * W_MATCH + pointsFactor * W_POINTS + recencyFactor * W_RECENCY + termBonus,
       };
     });
 
