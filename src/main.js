@@ -211,7 +211,17 @@ async function performSearch(query) {
     const queryVec = Array.from(output.data);
 
     // Score each entry with combined factors + term bonus
-    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    // Stopwords excluded from term bonus (common words that dilute precision)
+    const STOPWORDS = new Set(['how','what','where','when','why','which','who','whom','whose',
+      'the','a','an','is','are','was','were','be','been','being','have','has','had',
+      'do','does','did','will','would','could','should','may','might','shall','can',
+      'to','for','of','in','on','at','by','with','from','up','down','out','off','over',
+      'and','or','but','not','no','nor','so','if','than','then','else','also','very',
+      'just','about','into','through','during','before','after','above','below',
+      'this','that','these','those','it','its','it\'s','im','ive','id','you','your',
+      'we','our','they','them','their','he','him','his','she','her','my','me','mine']);
+
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2 && !STOPWORDS.has(t));
     const scored = indexData.map((chunk) => {
       const match = cosineSimilarity(queryVec, chunk.vector);
       const pointsFactor = maxPoints > 0 ? (chunk.points || 0) / maxPoints : 0;
