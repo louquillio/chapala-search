@@ -21,6 +21,7 @@ const list     = $('results-list');
 const empty    = $('empty-state');
 const info     = $('results-info');
 const count    = $('results-count');
+const help     = $('help-section');
 const statusDot   = $('status-dot');
 const statusText  = $('status-text');
 
@@ -58,7 +59,7 @@ function pointsColor(p) {
 function pointsBadgeHtml(p) {
   if (!p && p !== 0) return '';
   const c = pointsColor(p);
-  return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ring-1 ${c.bg} ${c.text} ${c.ring}">${p} pts</span>`;
+  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ${c.bg} ${c.text} ${c.ring}" title="Reactions (Likes + Thanks) this post received">${p} pts <span class="text-xs opacity-60">ⓘ</span></span>`;
 }
 
 // --- Render grouped results with collapse ---
@@ -74,6 +75,7 @@ function renderResults(scoredEntries) {
   empty.classList.add('hidden');
   info.classList.remove('hidden');
   count.textContent = scoredEntries.length;
+  help.classList.remove('hidden');
 
   // Group by thread URL
   const groups = new Map();
@@ -128,7 +130,7 @@ function renderResults(scoredEntries) {
       <div class="result-meta flex items-center gap-2">
         <span class="result-link">View post</span>
         ${featured.date ? '<span>' + featured.date.split('T')[0] + '</span>' : ''}
-        <span class="ml-auto">${(featured.match * 100).toFixed(0)}% ${featured.points ? '· ' + featured.points + ' pts' : ''}</span>
+        <span class="ml-auto" title="Semantic match between your query and this post. Higher = closer in meaning.">${(featured.match * 100).toFixed(0)}% match</span>
       </div>
     `;
 
@@ -164,7 +166,7 @@ function renderResults(scoredEntries) {
           </div>
           <div class="text-xs text-brand-400 flex items-center gap-2">
             <span class="result-link">View post</span>
-            <span>${(item.match * 100).toFixed(0)}% ${item.points ? '· ' + item.points + ' pts' : ''}</span>
+            <span title="Semantic match between your query and this post. Higher = closer in meaning.">${(item.match * 100).toFixed(0)}% match</span>
           </div>
         `;
         nestList.appendChild(nested);

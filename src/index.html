@@ -59,10 +59,20 @@
       <p class="text-lg">Type a question or topic to search</p>
       <p class="text-sm mt-2">e.g. "driver's license", "rental", "internet providers"</p>
     </div>
-  </div>
 
-  <!-- Environment indicator (LOCAL only — hidden on production) -->
-  <div id="env-badge" class="env-badge hidden">LOCAL</div>
+    <!-- How search works -->
+    <details id="help-section" class="mt-12 text-sm text-brand-400 border-t border-brand-200 pt-6 hidden">
+      <summary class="cursor-pointer hover:text-brand-600 font-medium">
+        How search works
+      </summary>
+      <div class="mt-3 space-y-2 leading-relaxed">
+        <p><strong>Match %</strong> — how closely a post's meaning matches your search query. 100% would be identical. Above 70% is a strong match. This is computed in your browser using a semantic AI model; nothing is sent to a server.</p>
+        <p><strong>Points</strong> — the total reactions (Likes + Thanks) that post received from forum members. Higher points means the community found it useful. 3+ points qualifies a post for indexing.</p>
+        <p><strong>Ranking</strong> — posts are scored by a blend of match relevance (55%), community points (25%), and how recent the post is (20%). If your search terms appear literally in a post's text, that post gets a bonus boost. Results are grouped by thread, with the best-matching post shown first and additional posts from the same thread collapsed.</p>
+        <p><strong>Coverage</strong> — the current index covers roughly 100 pages of the forum (~Jan 2024 to present). It runs entirely on your device — no data is sent anywhere for search.</p>
+      </div>
+    </details>
+  </div>
 
   <script type="module" src="./main.js"></script>
 </body>

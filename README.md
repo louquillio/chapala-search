@@ -145,19 +145,42 @@ Check the log at `scraper/pipeline.log` for output.
 
 ## How the Indexing Works
 
-1. **Crawl** — The scraper navigates the forum's topic listing pages (up to `--pages=N`)
-2. **Filter** — Each thread's first post is checked for reactions. Only threads with ≥3 total reactions (Likes + Thanks) proceed
-3. **Extract** — The first post text is extracted, HTML is stripped
-4. **Chunk** — Text is split by double newlines; paragraphs over 400 chars are broken at sentence boundaries
-5. **Embed** — Each chunk is converted to a 384-dimensional vector using all-MiniLM-L6-v2 (ONNX, local)
-6. **Index** — The chunks, vectors, and metadata are saved to `public/index.json`
+1. **Crawl** — The scraper navigates the forum's topic listing pages (up to `--pages=N`), collecting every non-pinned thread URL
+2. **Fetch** — Each thread page is loaded and parsed
+3. **Score** — Every post in each thread is checked for reactions. Only posts with ≥3 total reactions (Likes + Thanks — called "points") are kept
+4. **Extract** — Qualifying posts have their text extracted, HTML stripped
+5. **Chunk** — Text is split by double newlines; paragraphs over 400 chars are broken at sentence boundaries
+6. **Embed** — Each chunk is converted to a 384-dimensional vector using all-MiniLM-L6-v2 (ONNX, local)
+7. **Index** — Each chunk becomes an entry in `public/index.json` with its text, thread title, thread URL, direct post anchor (`#findComment-XXXXX`), post date, points, and vector
 
 ## How Search Works (in the Browser)
 
-1. **Load** — The page fetches `index.json` and the ONNX model
-2. **Type** — As the user types, each query is embedded using the same model
-3. **Match** — Cosine similarity is computed between the query vector and every stored vector
-4. **Display** — Top results are shown with a contextual snippet, thread title, and link
+1. **Load** — The page fetches `index.json` and loads the `all-MiniLM-L6-v2` ONNX model via `@huggingface/transformers`
+2. **Encode** — When the user types a query, it's embedded into a 384-dim vector using the same model
+3. **Score** — Every entry in the index is scored using four signals:
+
+   ```
+   score = match% × 0.55  +  points_norm × 0.25  +  recency × 0.20  +  term_bonus (+0.15)
+   ```
+
+   | Signal | Weight | Description |
+   |---|---|---|
+   | **Match %** | 55% | Cosine similarity between query vector and entry vector. Higher = closer in meaning |
+   | **Points** | 25% | Community reactions (Likes + Thanks), normalized against the max in the dataset |
+   | **Recency** | 20% | Linear decay over 2 years — a post from today scores 1.0, from 1 year ago scores 0.5 |
+   | **Term bonus** | +0.15 | If the query terms appear literally in the post text, this post gets a flat boost |
+
+4. **Filter** — Two-tier threshold:
+
+   - Posts containing any query term → shown if match > 10%
+   - Posts without query terms → shown only if match > 35%
+
+   This prevents noise: only posts that are genuinely semantically close (or literally match) will appear.
+
+5. **Group** — Results are grouped by thread. The best-scoring post from each thread is shown prominently; additional posts from the same thread are collapsed behind a toggle
+6. **Link** — Each result links directly to the specific post via `#findComment-XXXXX`, not to the top of the thread
+
+Everything runs in your browser. No data is sent to any server — your query never leaves your device.
 
 ## GitHub Pages Deployment
 
