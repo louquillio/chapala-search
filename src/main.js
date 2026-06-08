@@ -222,11 +222,13 @@ async function performSearch(query) {
       for (const t of queryTerms) {
         if (lower.includes(t)) termHits++;
       }
+      const hasTerm = termHits > 0;
       const termBonus = queryTerms.length > 0 ? (termHits / queryTerms.length) * 0.15 : 0;
 
       return {
         ...chunk,
         match,
+        hasTerm,
         score: match * W_MATCH + pointsFactor * W_POINTS + recencyFactor * W_RECENCY + termBonus,
       };
     });
@@ -241,7 +243,9 @@ async function performSearch(query) {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (r.match > 0.1 || top.length === 0) {
+      // Two-tier filter: term-matched posts need >10% match, pure semantic needs >35%
+      const minMatch = r.hasTerm ? 0.10 : 0.35;
+      if (r.match > minMatch || top.length === 0) {
         top.push(r);
       }
     }
